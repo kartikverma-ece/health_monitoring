@@ -1,0 +1,48 @@
+Required Arduino Libraries (Install via Library Manager in Arduino IDE)
+=======================================================================
+
+1. MAX30100lib
+   Author : OXullo Intersecans
+   Version: >= 1.2
+   Library Manager search: "MAX30100lib"
+   GitHub : https://github.com/oxullo/Arduino-MAX30100
+
+2. DHT sensor library
+   Author : Adafruit
+   Version: >= 1.4.4
+   Library Manager search: "DHT sensor library"
+   Note   : Also install "Adafruit Unified Sensor" as dependency
+
+3. Adafruit BMP280 Library
+   Author : Adafruit
+   Version: >= 2.6.6
+   Library Manager search: "Adafruit BMP280"
+
+4. SparkFun ADXL345 Arduino Library
+   Author : SparkFun Electronics
+   Version: >= 1.0.0
+   Library Manager search: "SparkFun ADXL345"
+
+5. Adafruit SSD1306
+   Author : Adafruit
+   Version: >= 2.5.7
+   Library Manager search: "Adafruit SSD1306"
+   Note   : Also install "Adafruit GFX Library" as dependency
+
+6. Adafruit GFX Library
+   Author : Adafruit
+   Version: >= 1.11.5
+   Library Manager search: "Adafruit GFX"
+
+7. ArduinoJson
+   Author : Benoit Blanchon
+   Version: >= 6.21 (v6 API)
+   Library Manager search: "ArduinoJson"
+   GitHub : https://arduinojson.org
+
+Board Package
+=============
+Board  : Arduino AVR Boards
+Install: Tools → Board → Board Manager → "Arduino AVR Boards" (latest)
+Select : Tools → Board → Arduino AVR Boards → Arduino Mega or Mega 2560
+Port   : Select correct COM port (Device Manager → Ports)

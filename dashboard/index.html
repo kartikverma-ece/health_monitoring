@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Health Monitor – IoT Dashboard</title>
+  <meta name="description" content="Real-time IoT-based health monitoring dashboard displaying heart rate, SpO2, ECG, temperature, pressure, altitude, and emergency alerts." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════
+     EMERGENCY OVERLAY
+════════════════════════════════════════════════════════ -->
+<div id="emergencyOverlay" class="emergency-overlay hidden">
+  <div class="emergency-content">
+    <div class="emergency-pulse-ring"></div>
+    <div class="emergency-icon">🚨</div>
+    <h2 id="emergencyTitle">EMERGENCY ALERT</h2>
+    <p id="emergencyMessage">High Heart Rate Detected</p>
+    <div class="emergency-vitals" id="emergencyVitals"></div>
+    <button id="dismissAlert" onclick="dismissEmergency()">Acknowledge Alert</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     HEADER / NAV
+════════════════════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-title">HealthMonitor</span>
+        <span class="logo-sub">IoT Dashboard</span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="setView('dashboard')">Dashboard</button>
+    <button class="nav-btn" onclick="setView('ecg')">ECG View</button>
+    <button class="nav-btn" onclick="setView('history')">History</button>
+    <button class="nav-btn" onclick="setView('settings')">Settings</button>
+  </nav>
+
+  <div class="header-right">
+    <div class="connection-status" id="connectionStatus">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Connecting...</span>
+    </div>
+    <div class="header-time" id="headerTime"></div>
+    <div class="patient-avatar">
+      <span>DP</span>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════
+     ALERT BANNER
+════════════════════════════════════════════════════════ -->
+<div id="alertBanner" class="alert-banner hidden">
+  <span class="alert-banner-icon">⚠️</span>
+  <span id="alertBannerText">Alert message</span>
+  <button onclick="document.getElementById('alertBanner').classList.add('hidden')">✕</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════════════════ -->
+<main class="main-content">
+
+  <!-- ── Patient Info Strip ───────────────────────────── -->
+  <section class="patient-strip">
+    <div class="patient-info">
+      <span class="patient-label">Patient:</span>
+      <span class="patient-name">Demo Patient</span>
+      <span class="patient-badge">ICU Ward 1</span>
+    </div>
+    <div class="patient-meta">
+      <span>Blood Group: <strong>O+</strong></span>
+      <span>Age: <strong>45</strong></span>
+      <span>Dr. Smith</span>
+    </div>
+    <div class="device-info">
+      <span class="device-label">Device:</span>
+      <span id="deviceId">ESP32_DEMO_001</span>
+      <span id="uptimeDisplay">Uptime: --</span>
+    </div>
+  </section>
+
+  <!-- ── Vital Signs Cards ─────────────────────────────── -->
+  <section class="vitals-grid" id="dashboardView">
+
+    <!-- Heart Rate -->
+    <div class="vital-card" id="cardHR">
+      <div class="card-header">
+        <div class="card-icon hr-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="card-title">Heart Rate</span>
+        <span class="card-status normal" id="hrStatus">NORMAL</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="hrValue">--</span>
+        <span class="value-unit">BPM</span>
+      </div>
+      <div class="card-subtext">
+        <span>Normal: 50–120 BPM</span>
+        <span id="hrTrend" class="trend-neutral">→</span>
+      </div>
+      <div class="card-sparkline">
+        <canvas id="hrSparkline"></canvas>
+      </div>
+      <div class="card-beat-indicator" id="beatIndicator"></div>
+    </div>
+
+    <!-- SpO2 -->
+    <div class="vital-card" id="cardSpO2">
+      <div class="card-header">
+        <div class="card-icon spo2-icon">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </div>
+        <span class="card-title">SpO₂</span>
+        <span class="card-status normal" id="spo2Status">NORMAL</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="spo2Value">--</span>
+        <span class="value-unit">%</span>
+      </div>
+      <div class="card-subtext"><span>Normal: ≥ 92%</span></div>
+      <div class="spo2-gauge" id="spo2Gauge">
+        <svg viewBox="0 0 120 60" class="gauge-svg">
+          <path d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#1e3a5f" stroke-width="10"/>
+          <path id="gaugeFill" d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#00d4ff" stroke-width="10" stroke-dasharray="157" stroke-dashoffset="157"/>
+        </svg>
+        <span class="gauge-label" id="gaugeLabel">--%</span>
+      </div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="vital-card" id="cardTemp">
+      <div class="card-header">
+        <div class="card-icon temp-icon">🌡️</div>
+        <span class="card-title">Temperature</span>
+        <span class="card-status normal" id="tempStatus">NORMAL</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="tempValue">--</span>
+        <span class="value-unit">°C</span>
+      </div>
+      <div class="card-subtext"><span>Normal: 36.0–38.0°C</span></div>
+      <div class="thermometer-bar">
+        <div class="thermo-track">
+          <div class="thermo-fill" id="thermoFill" style="width:0%"></div>
+        </div>
+        <div class="thermo-labels">
+          <span>35</span><span>36</span><span>37</span><span>38</span><span>39</span><span>40</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pressure -->
+    <div class="vital-card" id="cardPressure">
+      <div class="card-header">
+        <div class="card-icon pres-icon">🌐</div>
+        <span class="card-title">Pressure</span>
+        <span class="card-status info" id="presStatus">LIVE</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="presValue">--</span>
+        <span class="value-unit">hPa</span>
+      </div>
+      <div class="card-subtext"><span>Sea level: 1013.25 hPa</span></div>
+    </div>
+
+    <!-- Altitude -->
+    <div class="vital-card" id="cardAlt">
+      <div class="card-header">
+        <div class="card-icon alt-icon">⛰️</div>
+        <span class="card-title">Altitude</span>
+        <span class="card-status info" id="altStatus">LIVE</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="altValue">--</span>
+        <span class="value-unit">m</span>
+      </div>
+      <div class="card-subtext"><span>Above sea level</span></div>
+    </div>
+
+    <!-- Light Level -->
+    <div class="vital-card" id="cardLight">
+      <div class="card-header">
+        <div class="card-icon light-icon">💡</div>
+        <span class="card-title">Ambient Light</span>
+        <span class="card-status info" id="lightStatus">LIVE</span>
+      </div>
+      <div class="card-value">
+        <span class="value-number" id="lightValue">--</span>
+        <span class="value-unit">%</span>
+      </div>
+      <div class="light-ring" id="lightRing">
+        <div class="light-inner" id="lightInner"></div>
+      </div>
+    </div>
+
+    <!-- Activity / Fall -->
+    <div class="vital-card" id="cardFall">
+      <div class="card-header">
+        <div class="card-icon fall-icon">🚶</div>
+        <span class="card-title">Activity / Fall</span>
+        <span class="card-status normal" id="fallStatus">NORMAL</span>
+      </div>
+      <div class="activity-display">
+        <div class="activity-icon-large" id="activityIcon">🚶‍♂️</div>
+        <div class="activity-text" id="activityText">Standing / Walking</div>
+      </div>
+      <div class="fall-indicator" id="fallIndicator">
+        <span>Fall Detected: </span>
+        <span id="fallValue" class="fall-safe">NO</span>
+      </div>
+      <div class="vib-indicator">
+        <span>Vibration: </span>
+        <span id="vibValue" class="fall-safe">NORMAL</span>
+      </div>
+    </div>
+
+    <!-- ECG Status -->
+    <div class="vital-card" id="cardECG">
+      <div class="card-header">
+        <div class="card-icon ecg-icon">
+          <svg viewBox="0 0 24 24" fill="none"><polyline points="2,12 5,12 7,6 9,18 12,8 14,12 16,10 18,12 22,12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="card-title">ECG Status</span>
+        <span class="card-status normal" id="ecgStatus">CONNECTED</span>
+      </div>
+      <div class="card-value small">
+        <span class="value-number" id="ecgRaw">--</span>
+        <span class="value-unit">ADC</span>
+      </div>
+      <div class="ecg-mini-container">
+        <canvas id="ecgMiniCanvas" height="60"></canvas>
+      </div>
+    </div>
+
+  </section><!-- end vitals-grid -->
+
+  <!-- ── ECG Full Screen View ──────────────────────────── -->
+  <section class="ecg-fullview hidden" id="ecgView">
+    <div class="ecg-header">
+      <h2>📈 Live ECG Monitor</h2>
+      <div class="ecg-controls">
+        <button class="ecg-btn active" onclick="setECGSpeed(1)">1×</button>
+        <button class="ecg-btn" onclick="setECGSpeed(2)">2×</button>
+        <button class="ecg-btn" onclick="setECGSpeed(0.5)">0.5×</button>
+        <button class="ecg-btn" id="ecgFreezeBtn" onclick="toggleECGFreeze()">⏸ Freeze</button>
+        <button class="ecg-btn" onclick="exportECG()">💾 Export</button>
+      </div>
+    </div>
+    <div class="ecg-chart-container">
+      <canvas id="ecgFullChart"></canvas>
+      <div class="ecg-grid-overlay"></div>
+    </div>
+    <div class="ecg-info-strip">
+      <div class="ecg-info-item"><span>HR</span><strong id="ecgHR">--</strong> <small>BPM</small></div>
+      <div class="ecg-info-item"><span>SpO₂</span><strong id="ecgSpO2">--</strong> <small>%</small></div>
+      <div class="ecg-info-item"><span>Leads</span><strong id="ecgLeads">ON</strong></div>
+      <div class="ecg-info-item"><span>Gain</span><strong>×1</strong></div>
+      <div class="ecg-info-item"><span>Speed</span><strong id="ecgSpeedDisplay">25 mm/s</strong></div>
+    </div>
+  </section>
+
+  <!-- ── Bottom Row: Charts + Alert History ───────────── -->
+  <section class="bottom-row" id="bottomRow">
+
+    <!-- Multi-vital trend chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Vital Trends (Last 60 Readings)</h3>
+        <div class="chart-legend">
+          <span class="legend-dot hr-dot"></span><span>HR</span>
+          <span class="legend-dot spo2-dot"></span><span>SpO₂</span>
+          <span class="legend-dot temp-dot"></span><span>Temp×2</span>
+        </div>
+      </div>
+      <canvas id="trendChart" height="180"></canvas>
+    </div>
+
+    <!-- Alert History -->
+    <div class="alert-history-card">
+      <div class="chart-header">
+        <h3>⚠️ Alert History</h3>
+        <span class="alert-count" id="alertCount">0 Alerts</span>
+      </div>
+      <div class="alert-list" id="alertList">
+        <div class="no-alerts">No alerts recorded</div>
+      </div>
+    </div>
+
+  </section><!-- end bottom-row -->
+
+  <!-- ── History View ──────────────────────────────────── -->
+  <section class="history-view hidden" id="historyView">
+    <div class="history-header">
+      <h2>📊 Health History</h2>
+      <div class="history-controls">
+        <select id="historyRange" onchange="loadHistory()">
+          <option value="1h">Last 1 Hour</option>
+          <option value="6h">Last 6 Hours</option>
+          <option value="24h" selected>Last 24 Hours</option>
+          <option value="7d">Last 7 Days</option>
+        </select>
+        <button class="ecg-btn" onclick="exportHistory()">📥 Export CSV</button>
+      </div>
+    </div>
+    <div class="history-charts">
+      <canvas id="historyHRChart" height="200"></canvas>
+      <canvas id="historySpO2Chart" height="200"></canvas>
+    </div>
+    <div class="history-table-wrap">
+      <table class="history-table" id="historyTable">
+        <thead>
+          <tr>
+            <th>Time</th><th>HR (BPM)</th><th>SpO₂ (%)</th>
+            <th>Temp (°C)</th><th>Pressure (hPa)</th>
+            <th>Altitude (m)</th><th>Fall</th><th>Alert</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Settings View ─────────────────────────────────── -->
+  <section class="settings-view hidden" id="settingsView">
+    <div class="settings-header"><h2>⚙️ System Settings</h2></div>
+    <div class="settings-grid">
+
+      <div class="settings-card">
+        <h3>Connection</h3>
+        <label>WebSocket URL
+          <input type="text" id="wsUrl" value="ws://192.168.1.100:81" />
+        </label>
+        <label>MQTT Broker
+          <input type="text" id="mqttBroker" value="broker.hivemq.com" />
+        </label>
+        <button class="btn-primary" onclick="reconnectWS()">Reconnect</button>
+      </div>
+
+      <div class="settings-card">
+        <h3>Alert Thresholds</h3>
+        <label>HR High (BPM) <input type="number" id="tHrHigh" value="120" /></label>
+        <label>HR Low (BPM)  <input type="number" id="tHrLow"  value="50"  /></label>
+        <label>SpO₂ Low (%)  <input type="number" id="tSpo2"   value="92"  /></label>
+        <label>Temp High (°C)<input type="number" id="tTemp"   value="38"  step="0.1" /></label>
+        <button class="btn-primary" onclick="saveThresholds()">Save Thresholds</button>
+      </div>
+
+      <div class="settings-card">
+        <h3>Patient Info</h3>
+        <label>Full Name    <input type="text" id="patientName" value="Demo Patient" /></label>
+        <label>Age          <input type="number" id="patientAge" value="45" /></label>
+        <label>Blood Group  <input type="text" id="patientBG" value="O+" /></label>
+        <label>Emergency No.<input type="tel" id="patientEmg" value="+91-9876543210" /></label>
+        <button class="btn-primary" onclick="savePatient()">Save Profile</button>
+      </div>
+
+      <div class="settings-card">
+        <h3>Display</h3>
+        <label class="toggle-label">
+          <span>Dark Mode</span>
+          <input type="checkbox" id="darkModeToggle" checked onchange="toggleDarkMode()" />
+          <span class="toggle-switch"></span>
+        </label>
+        <label class="toggle-label">
+          <span>Sound Alerts</span>
+          <input type="checkbox" id="soundToggle" checked />
+          <span class="toggle-switch"></span>
+        </label>
+        <label class="toggle-label">
+          <span>Emergency Overlay</span>
+          <input type="checkbox" id="overlayToggle" checked />
+          <span class="toggle-switch"></span>
+        </label>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ════════════════════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer-left">Smart IoT Health Monitor v1.0 &nbsp;|&nbsp; Arduino Mega + ESP32</div>
+  <div class="footer-center" id="footerStats">Readings: 0 &nbsp;|&nbsp; Alerts: 0 &nbsp;|&nbsp; Uptime: 00:00:00</div>
+  <div class="footer-right">
+    <span id="lastUpdate">Last Update: --</span>
+    &nbsp;|&nbsp;
+    <span id="rssiDisplay">RSSI: --</span>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

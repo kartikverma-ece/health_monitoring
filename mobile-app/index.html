@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#050d1a"/>
+  <title>HealthMonitor – Mobile</title>
+  <meta name="description" content="Smart IoT Health Monitoring mobile application for real-time vital signs, ECG, and emergency alerts."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════ */
+:root {
+  --bg:       #050d1a;
+  --bg2:      #091428;
+  --card:     #0d1f38;
+  --surface:  #152a47;
+  --border:   #1a2f52;
+  --blue:     #1a6bff;
+  --cyan:     #00d4ff;
+  --green:    #00e676;
+  --red:      #ff3b3b;
+  --amber:    #ffab00;
+  --purple:   #b266ff;
+  --pink:     #ff4081;
+  --teal:     #00bfa5;
+  --txt:      #e8f0fe;
+  --txt2:     #8bafd4;
+  --txt3:     #4a6080;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--txt);
+  display:flex;
+  flex-direction:column;
+  max-width:430px;
+  margin:0 auto;
+  position:relative;
+}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--blue);border-radius:2px;}
+
+/* ═══ STATUS BAR ════════════════════════════════════════ */
+.status-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 16px;font-size:.72rem;color:var(--txt2);
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.status-right{display:flex;gap:8px;align-items:center;}
+.battery{
+  width:22px;height:11px;border:1.5px solid var(--txt2);border-radius:2px;
+  position:relative;padding:1.5px;display:flex;align-items:center;
+}
+.battery::after{
+  content:'';position:absolute;right:-4px;top:50%;transform:translateY(-50%);
+  width:2px;height:5px;background:var(--txt2);border-radius:0 1px 1px 0;
+}
+.battery-fill{height:100%;background:var(--green);border-radius:1px;width:75%;}
+.signal{display:flex;gap:2px;align-items:flex-end;}
+.signal span{
+  width:3px;background:var(--txt2);border-radius:1px;
+}
+.signal span:nth-child(1){height:4px;}
+.signal span:nth-child(2){height:6px;}
+.signal span:nth-child(3){height:8px;}
+.signal span:nth-child(4){height:10px;}
+
+/* ═══ TOP HEADER ════════════════════════════════════════ */
+.top-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;background:var(--bg2);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.app-title{font-size:1.1rem;font-weight:700;}
+.app-subtitle{font-size:.68rem;color:var(--txt2);}
+.header-icons{display:flex;gap:12px;}
+.icon-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1rem;cursor:pointer;
+}
+.alert-badge{
+  position:relative;
+}
+.alert-badge::after{
+  content:'2';position:absolute;top:-4px;right:-4px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--red);color:white;font-size:.6rem;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;
+}
+
+/* ═══ PATIENT CARD ══════════════════════════════════════ */
+.patient-card{
+  margin:12px 16px;
+  background:linear-gradient(135deg,var(--blue),#0a3fa0);
+  border-radius:16px;padding:16px 20px;
+  display:flex;align-items:center;gap:16px;
+  box-shadow:0 4px 20px rgba(26,107,255,.3);
+  flex-shrink:0;
+}
+.patient-avatar-big{
+  width:52px;height:52px;border-radius:50%;
+  background:rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;font-weight:700;border:2px solid rgba(255,255,255,.3);
+  flex-shrink:0;
+}
+.patient-details{flex:1;}
+.patient-pname{font-size:1rem;font-weight:700;}
+.patient-pmeta{font-size:.75rem;opacity:.8;margin-top:2px;}
+.patient-status{
+  background:rgba(0,230,118,.2);border:1px solid rgba(0,230,118,.4);
+  color:var(--green);padding:4px 10px;border-radius:20px;
+  font-size:.7rem;font-weight:600;margin-top:6px;display:inline-block;
+}
+
+/* ═══ EMERGENCY BANNER ══════════════════════════════════ */
+.emergency-banner{
+  margin:0 16px 10px;
+  background:linear-gradient(90deg,#2a0808,#1a0808);
+  border:1px solid rgba(255,59,59,.5);border-left:4px solid var(--red);
+  border-radius:12px;padding:12px 16px;
+  display:flex;align-items:center;gap:12px;
+  animation:bannerPulse 1.5s ease infinite alternate;
+}
+@keyframes bannerPulse{from{border-color:rgba(255,59,59,.5)}to{border-color:var(--red)}}
+.emergency-banner.hidden{display:none;}
+.emg-icon{font-size:1.5rem;}
+.emg-text{flex:1;}
+.emg-title{font-size:.85rem;font-weight:700;color:var(--red);}
+.emg-sub{font-size:.72rem;color:var(--txt2);}
+.emg-ack{
+  background:var(--red);color:white;border:none;
+  padding:6px 12px;border-radius:8px;font-size:.72rem;
+  font-weight:600;cursor:pointer;font-family:var(--sans);
+}
+
+/* ═══ SCROLL CONTENT ════════════════════════════════════ */
+.tab-content{flex:1;overflow-y:auto;padding-bottom:80px;}
+
+/* ═══ VITAL GRID ════════════════════════════════════════ */
+.vital-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:10px;padding:0 16px 16px;
+}
+.m-vital-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px;
+  transition:all .2s;
+}
+.m-vital-card:active{transform:scale(.97);}
+.m-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.m-card-icon{font-size:1.2rem;}
+.m-card-badge{
+  font-size:.6rem;font-weight:700;padding:2px 7px;
+  border-radius:20px;text-transform:uppercase;
+}
+.badge-ok  {background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3);}
+.badge-err {background:rgba(255,59,59,.15);color:var(--red);border:1px solid rgba(255,59,59,.3);animation:blink 1s infinite;}
+.badge-info{background:rgba(0,212,255,.15);color:var(--cyan);border:1px solid rgba(0,212,255,.3);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.m-val{
+  font-size:2rem;font-weight:800;font-family:var(--mono);
+  color:white;line-height:1;
+}
+.m-val.alert-val{color:var(--red);}
+.m-unit{font-size:.7rem;color:var(--txt3);margin-top:2px;}
+.m-label{font-size:.7rem;color:var(--txt2);margin-top:2px;font-weight:500;}
+.m-vital-card.full{grid-column:1/-1;}
+
+/* ═══ ECG SECTION ═══════════════════════════════════════ */
+.ecg-section{
+  margin:0 16px 16px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:16px;
+}
+.ecg-sec-title{
+  font-size:.82rem;font-weight:600;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;
+  display:flex;justify-content:space-between;
+}
+.ecg-sec-title span{color:var(--green);font-family:var(--mono);}
+.ecg-container{background:#010a1a;border-radius:10px;padding:8px;position:relative;}
+.ecg-grid-lines{
+  position:absolute;inset:8px;
+  background-image:
+    linear-gradient(rgba(0,230,118,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,230,118,.04) 1px,transparent 1px);
+  background-size:16px 16px;pointer-events:none;border-radius:8px;
+}
+
+/* ═══ QUICK STATS ROW ═══════════════════════════════════ */
+.quick-stats{
+  display:flex;gap:8px;padding:0 16px 16px;overflow-x:auto;
+}
+.quick-stats::-webkit-scrollbar{height:0;}
+.q-stat{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:10px 14px;flex-shrink:0;
+  text-align:center;min-width:90px;
+}
+.q-stat-val{font-size:1.1rem;font-weight:700;font-family:var(--mono);}
+.q-stat-label{font-size:.65rem;color:var(--txt2);margin-top:2px;}
+
+/* ═══ ALERT LIST ════════════════════════════════════════ */
+.section-title{
+  font-size:.82rem;font-weight:600;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.8px;
+  padding:4px 16px 10px;display:flex;justify-content:space-between;
+}
+.m-alert-item{
+  margin:0 16px 10px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px;
+  display:flex;gap:12px;align-items:flex-start;
+}
+.m-alert-dot{
+  width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:1rem;
+}
+.dot-red  {background:rgba(255,59,59,.2);}
+.dot-amber{background:rgba(255,171,0,.2);}
+.dot-green{background:rgba(0,230,118,.2);}
+.m-alert-body{flex:1;}
+.m-alert-type{font-size:.85rem;font-weight:600;}
+.m-alert-val {font-size:.75rem;color:var(--txt2);margin:2px 0;}
+.m-alert-time{font-size:.65rem;color:var(--txt3);font-family:var(--mono);}
+.m-alert-status{
+  font-size:.65rem;padding:3px 8px;border-radius:20px;
+  font-weight:600;flex-shrink:0;
+}
+.status-unresolved{background:rgba(255,59,59,.15);color:var(--red);}
+.status-resolved  {background:rgba(0,230,118,.15);color:var(--green);}
+
+/* ═══ HISTORY VIEW ══════════════════════════════════════ */
+.history-tabs{
+  display:flex;gap:6px;padding:8px 16px;
+  border-bottom:1px solid var(--border);margin-bottom:8px;
+}
+.h-tab{
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--txt2);padding:6px 14px;border-radius:8px;
+  font-size:.75rem;font-weight:500;cursor:pointer;
+  font-family:var(--sans);border:none;
+}
+.h-tab.active{background:var(--blue);color:white;}
+.chart-wrap{
+  margin:0 16px 16px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:14px;
+}
+.chart-wrap-title{font-size:.8rem;color:var(--txt2);margin-bottom:10px;font-weight:500;}
+
+/* ═══ PROFILE VIEW ══════════════════════════════════════ */
+.profile-header{
+  background:linear-gradient(135deg,var(--bg2),var(--card));
+  padding:24px 20px;text-align:center;
+  border-bottom:1px solid var(--border);
+}
+.profile-avatar{
+  width:80px;height:80px;border-radius:50%;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;font-weight:700;margin:0 auto 12px;
+  border:3px solid rgba(255,255,255,.15);
+}
+.profile-name{font-size:1.3rem;font-weight:700;}
+.profile-sub{font-size:.8rem;color:var(--txt2);margin-top:4px;}
+.profile-stats{
+  display:flex;gap:16px;justify-content:center;margin-top:16px;
+}
+.p-stat{text-align:center;}
+.p-stat-val{font-size:1.1rem;font-weight:700;font-family:var(--mono);}
+.p-stat-label{font-size:.65rem;color:var(--txt2);}
+.profile-section{padding:16px;}
+.profile-section h4{font-size:.8rem;color:var(--txt2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;}
+.profile-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 0;border-bottom:1px solid var(--border);
+}
+.profile-row:last-child{border-bottom:none;}
+.p-row-label{font-size:.82rem;color:var(--txt2);}
+.p-row-val  {font-size:.82rem;font-weight:600;}
+.sos-btn{
+  margin:16px;width:calc(100% - 32px);
+  background:linear-gradient(135deg,var(--red),#c0392b);
+  color:white;border:none;border-radius:14px;
+  padding:16px;font-size:1rem;font-weight:700;
+  cursor:pointer;letter-spacing:.5px;font-family:var(--sans);
+  box-shadow:0 4px 20px rgba(255,59,59,.3);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+
+/* ═══ BOTTOM NAV ════════════════════════════════════════ */
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:430px;
+  background:var(--bg2);border-top:1px solid var(--border);
+  display:flex;justify-content:space-around;align-items:center;
+  padding:8px 0 max(8px, env(safe-area-inset-bottom));
+  z-index:100;backdrop-filter:blur(20px);
+}
+.nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  cursor:pointer;padding:4px 16px;border-radius:10px;
+  transition:all .2s;flex:1;
+}
+.nav-item:active{background:var(--surface);}
+.nav-icon{font-size:1.3rem;}
+.nav-label{font-size:.6rem;color:var(--txt3);font-weight:500;}
+.nav-item.active .nav-icon{filter:drop-shadow(0 0 6px var(--blue));}
+.nav-item.active .nav-label{color:var(--blue);font-weight:700;}
+.nav-item.alert-nav .nav-label{color:var(--red);}
+
+/* ═══ HIDDEN ════════════════════════════════════════════ */
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+</style>
+</head>
+<body>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <span id="mTime">17:04</span>
+  <div class="status-right">
+    <div class="signal"><span></span><span></span><span></span><span></span></div>
+    <span style="font-size:.65rem">WiFi</span>
+    <div class="battery"><div class="battery-fill"></div></div>
+  </div>
+</div>
+
+<!-- Top Header -->
+<div class="top-header">
+  <div>
+    <div class="app-title">HealthMonitor</div>
+    <div class="app-subtitle">Smart IoT Health System</div>
+  </div>
+  <div class="header-icons">
+    <div class="icon-btn alert-badge" onclick="showTab('alerts')" title="Alerts">🔔</div>
+    <div class="icon-btn" onclick="showTab('profile')" title="Profile">👤</div>
+  </div>
+</div>
+
+<!-- Tab Content Area -->
+<div class="tab-content">
+
+  <!-- ═══════ MONITOR TAB ══════════════════════════════ -->
+  <div class="tab-panel active" id="tab-monitor">
+
+    <!-- Patient Card -->
+    <div class="patient-card">
+      <div class="patient-avatar-big">DP</div>
+      <div class="patient-details">
+        <div class="patient-pname">Demo Patient</div>
+        <div class="patient-pmeta">Age 45 · O+ · ICU Ward 1</div>
+        <div class="patient-status">● Monitored</div>
+      </div>
+    </div>
+
+    <!-- Emergency Banner -->
+    <div class="emergency-banner hidden" id="mEmergencyBanner">
+      <div class="emg-icon">🚨</div>
+      <div class="emg-text">
+        <div class="emg-title" id="mEmgTitle">ALERT: HIGH HEART RATE</div>
+        <div class="emg-sub">HR: 128 BPM | Tap to acknowledge</div>
+      </div>
+      <button class="emg-ack" onclick="acknowledgeAlert()">ACK</button>
+    </div>
+
+    <!-- Vitals Grid -->
+    <div class="vital-grid">
+
+      <div class="m-vital-card" id="mCardHR">
+        <div class="m-card-top">
+          <span class="m-card-icon">❤️</span>
+          <span class="m-card-badge badge-ok" id="mHrBadge">OK</span>
+        </div>
+        <div class="m-val" id="mHrVal">--</div>
+        <div class="m-unit">BPM</div>
+        <div class="m-label">Heart Rate</div>
+      </div>
+
+      <div class="m-vital-card" id="mCardSpO2">
+        <div class="m-card-top">
+          <span class="m-card-icon">💧</span>
+          <span class="m-card-badge badge-ok" id="mSpo2Badge">OK</span>
+        </div>
+        <div class="m-val" id="mSpo2Val">--</div>
+        <div class="m-unit">%</div>
+        <div class="m-label">SpO₂</div>
+      </div>
+
+      <div class="m-vital-card" id="mCardTemp">
+        <div class="m-card-top">
+          <span class="m-card-icon">🌡️</span>
+          <span class="m-card-badge badge-ok" id="mTempBadge">OK</span>
+        </div>
+        <div class="m-val" id="mTempVal">--</div>
+        <div class="m-unit">°C</div>
+        <div class="m-label">Temperature</div>
+      </div>
+
+      <div class="m-vital-card" id="mCardFall">
+        <div class="m-card-top">
+          <span class="m-card-icon">🚶</span>
+          <span class="m-card-badge badge-ok" id="mFallBadge">OK</span>
+        </div>
+        <div class="m-val" id="mFallVal" style="font-size:1.2rem">SAFE</div>
+        <div class="m-unit">Status</div>
+        <div class="m-label">Fall Detection</div>
+      </div>
+
+      <div class="m-vital-card">
+        <div class="m-card-top">
+          <span class="m-card-icon">🌐</span>
+          <span class="m-card-badge badge-info">LIVE</span>
+        </div>
+        <div class="m-val" id="mPresVal">--</div>
+        <div class="m-unit">hPa</div>
+        <div class="m-label">Pressure</div>
+      </div>
+
+      <div class="m-vital-card">
+        <div class="m-card-top">
+          <span class="m-card-icon">⛰️</span>
+          <span class="m-card-badge badge-info">LIVE</span>
+        </div>
+        <div class="m-val" id="mAltVal">--</div>
+        <div class="m-unit">m</div>
+        <div class="m-label">Altitude</div>
+      </div>
+
+      <div class="m-vital-card full">
+        <div class="m-card-top">
+          <span class="m-card-icon">💡</span>
+          <span class="m-card-badge badge-info">AMBIENT</span>
+        </div>
+        <div class="m-val" id="mLightVal">--</div>
+        <div class="m-unit">% brightness</div>
+        <div class="m-label">Light Level</div>
+      </div>
+
+    </div>
+
+    <!-- ECG Section -->
+    <div class="ecg-section">
+      <div class="ecg-sec-title">
+        Live ECG <span id="mEcgStatus">Connected ✓</span>
+      </div>
+      <div class="ecg-container">
+        <div class="ecg-grid-lines"></div>
+        <canvas id="mEcgCanvas" height="90"></canvas>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+      <div class="q-stat">
+        <div class="q-stat-val" id="mHumVal">--%</div>
+        <div class="q-stat-label">Humidity</div>
+      </div>
+      <div class="q-stat">
+        <div class="q-stat-val" id="mRssiVal">-- dBm</div>
+        <div class="q-stat-label">Signal</div>
+      </div>
+      <div class="q-stat">
+        <div class="q-stat-val" id="mReadings">0</div>
+        <div class="q-stat-label">Readings</div>
+      </div>
+      <div class="q-stat">
+        <div class="q-stat-val" id="mAlertCount">0</div>
+        <div class="q-stat-label">Alerts</div>
+      </div>
+      <div class="q-stat">
+        <div class="q-stat-val" id="mUptime">00:00</div>
+        <div class="q-stat-label">Uptime</div>
+      </div>
+    </div>
+
+  </div><!-- end monitor tab -->
+
+  <!-- ═══════ ALERTS TAB ═══════════════════════════════ -->
+  <div class="tab-panel" id="tab-alerts">
+    <div class="section-title" style="padding-top:16px;">
+      Alert History
+      <span style="color:var(--amber);font-size:.75rem;" id="mAlertBadge">0 Alerts</span>
+    </div>
+
+    <div id="mAlertList">
+      <div style="text-align:center;padding:48px;color:var(--txt3);font-size:.85rem;">
+        No alerts recorded.<br/>System is operating normally. ✓
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ HISTORY TAB ══════════════════════════════ -->
+  <div class="tab-panel" id="tab-history">
+    <div class="history-tabs">
+      <button class="h-tab active" onclick="mSetRange('1h',this)">1H</button>
+      <button class="h-tab" onclick="mSetRange('6h',this)">6H</button>
+      <button class="h-tab" onclick="mSetRange('24h',this)">24H</button>
+      <button class="h-tab" onclick="mSetRange('7d',this)">7D</button>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-wrap-title">Heart Rate (BPM)</div>
+      <canvas id="mHrChart" height="140"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-wrap-title">SpO₂ (%)</div>
+      <canvas id="mSpo2Chart" height="140"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-wrap-title">Temperature (°C)</div>
+      <canvas id="mTempChart" height="140"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══════ PROFILE TAB ══════════════════════════════ -->
+  <div class="tab-panel" id="tab-profile">
+    <div class="profile-header">
+      <div class="profile-avatar">DP</div>
+      <div class="profile-name">Demo Patient</div>
+      <div class="profile-sub">Patient ID: #00142 · ICU Ward 1</div>
+      <div class="profile-stats">
+        <div class="p-stat">
+          <div class="p-stat-val">45</div>
+          <div class="p-stat-label">Age</div>
+        </div>
+        <div class="p-stat">
+          <div class="p-stat-val">O+</div>
+          <div class="p-stat-label">Blood</div>
+        </div>
+        <div class="p-stat">
+          <div class="p-stat-val">172</div>
+          <div class="p-stat-label">cm</div>
+        </div>
+        <div class="p-stat">
+          <div class="p-stat-val">70</div>
+          <div class="p-stat-label">kg</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h4>Medical Info</h4>
+      <div class="profile-row">
+        <span class="p-row-label">Doctor</span>
+        <span class="p-row-val">Dr. Smith</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Ward</span>
+        <span class="p-row-val">ICU Ward 1</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Diagnosis</span>
+        <span class="p-row-val">Cardiac Monitoring</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Allergies</span>
+        <span class="p-row-val">None Known</span>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h4>Emergency Contacts</h4>
+      <div class="profile-row">
+        <span class="p-row-label">Primary</span>
+        <span class="p-row-val">+91-9876543210</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Doctor</span>
+        <span class="p-row-val">+91-9876543220</span>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h4>Device Info</h4>
+      <div class="profile-row">
+        <span class="p-row-label">Device ID</span>
+        <span class="p-row-val" style="font-family:var(--mono);font-size:.75rem">ESP32_DEMO_001</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Firmware</span>
+        <span class="p-row-val">v1.0.0</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">Connection</span>
+        <span class="p-row-val" style="color:var(--green)">● Connected</span>
+      </div>
+      <div class="profile-row">
+        <span class="p-row-label">MQTT</span>
+        <span class="p-row-val" style="color:var(--green)">broker.hivemq.com</span>
+      </div>
+    </div>
+
+    <button class="sos-btn" onclick="triggerSOS()">
+      🆘 SEND EMERGENCY SOS
+    </button>
+
+  </div><!-- end profile -->
+
+</div><!-- end tab-content -->
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-monitor" onclick="showTab('monitor')">
+    <span class="nav-icon">📊</span>
+    <span class="nav-label">Monitor</span>
+  </div>
+  <div class="nav-item alert-nav" id="nav-alerts" onclick="showTab('alerts')">
+    <span class="nav-icon">🔔</span>
+    <span class="nav-label">Alerts</span>
+  </div>
+  <div class="nav-item" id="nav-history" onclick="showTab('history')">
+    <span class="nav-icon">📈</span>
+    <span class="nav-label">History</span>
+  </div>
+  <div class="nav-item" id="nav-profile" onclick="showTab('profile')">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">Profile</span>
+  </div>
+</nav>
+
+<script>
+// ─── Tab Management ───────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// ─── Clock ───────────────────────────────────────────────
+function updateClock() {
+  const t = new Date();
+  document.getElementById('mTime').textContent =
+    t.getHours().toString().padStart(2,'0') + ':' +
+    t.getMinutes().toString().padStart(2,'0');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ─── Charts ───────────────────────────────────────────────
+Chart.defaults.color = '#8bafd4';
+Chart.defaults.font.family = "'Inter', sans-serif";
+
+function mkLineChart(id, color, lo, hi) {
+  return new Chart(document.getElementById(id).getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: color, borderWidth: 2,
+      pointRadius: 0, fill: true, backgroundColor: color + '18', tension: 0.3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: true,
+        backgroundColor: '#0d1f38', borderColor: '#1a2f52', borderWidth: 1 } },
+      scales: {
+        x: { display: true, grid: { color: '#1a2f52' },
+          ticks: { color: '#4a6080', maxTicksLimit: 4, font: { size: 9 } } },
+        y: { display: true, min: lo, max: hi, grid: { color: '#1a2f52' },
+          ticks: { color: '#4a6080', font: { size: 9 } } }
+      }
+    }
+  });
+}
+
+const charts = {
+  hr:   mkLineChart('mHrChart',   '#ff4081', 40, 150),
+  spo2: mkLineChart('mSpo2Chart', '#00d4ff', 80, 100),
+  temp: mkLineChart('mTempChart', '#ffab00', 35, 40),
+};
+
+// ECG mini
+const ecgCtx = document.getElementById('mEcgCanvas').getContext('2d');
+const ecgChart = new Chart(ecgCtx, {
+  type: 'line',
+  data: { labels: Array(100).fill(''),
+    datasets: [{ data: Array(100).fill(512), borderColor: '#00e676',
+      borderWidth: 2, pointRadius: 0, fill: false, tension: 0 }] },
+  options: { responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: { x: { display: false }, y: { display: false, min: 0, max: 1023 } } }
+});
+
+// ─── Demo Simulation ──────────────────────────────────────
+const mState = { hr:72, spo2:98, temp:36.8, pres:1013, alt:12, light:65,
+                 hum:55, ecgPhase:0, readings:0, alertCount:0, startMs:Date.now() };
+const mAlerts = [];
+const mHrH = [], mSpo2H = [], mTempH = [], mTimeH = [];
+
+function genECG(phase) {
+  if(phase<40)  return 512 + Math.round(50*Math.sin(phase*Math.PI/40));
+  if(phase<100) return 512 + Math.round(10*Math.sin((phase-40)*Math.PI/60));
+  if(phase<115) return 512 - Math.round(80*Math.sin((phase-100)*Math.PI/15));
+  if(phase<130) return 512 + Math.round(350*Math.sin((phase-115)*Math.PI/15));
+  if(phase<150) return 512 - Math.round(120*Math.sin((phase-130)*Math.PI/20));
+  if(phase<220) return 512 + Math.round(30*Math.sin((phase-150)*Math.PI/70));
+  return 512 + Math.round((Math.random()-.5)*8);
+}
+
+let tick = 0;
+setInterval(() => {
+  tick++;
+  mState.readings++;
+  mState.hr   = Math.max(48, Math.min(130, mState.hr   + (Math.random()-.5)*4));
+  mState.spo2 = Math.max(88, Math.min(100, mState.spo2 + (Math.random()-.5)*.4));
+  mState.temp = Math.max(36, Math.min(38.8, mState.temp+ (Math.random()-.5)*.06));
+  mState.hum  = Math.max(40, Math.min(70, mState.hum   + (Math.random()-.5)*2));
+  mState.ecgPhase = (mState.ecgPhase + 8) % 360;
+  const ecgVal = genECG(mState.ecgPhase);
+
+  // Emergency triggers
+  let isAlert = false, alertMsg = '';
+  if(mState.hr>120)       { isAlert=true; alertMsg='HIGH HEART RATE'; }
+  else if(mState.hr<50)   { isAlert=true; alertMsg='LOW HEART RATE'; }
+  else if(mState.spo2<92) { isAlert=true; alertMsg='LOW SpO2 LEVEL'; }
+  else if(mState.temp>38) { isAlert=true; alertMsg='HIGH TEMPERATURE'; }
+
+  // Update cards
+  document.getElementById('mHrVal').textContent   = Math.round(mState.hr);
+  document.getElementById('mSpo2Val').textContent  = Math.round(mState.spo2);
+  document.getElementById('mTempVal').textContent  = mState.temp.toFixed(1);
+  document.getElementById('mPresVal').textContent  = Math.round(mState.pres);
+  document.getElementById('mAltVal').textContent   = Math.round(mState.alt);
+  document.getElementById('mLightVal').textContent = Math.round(mState.light);
+  document.getElementById('mHumVal').textContent   = Math.round(mState.hum) + '%';
+  document.getElementById('mReadings').textContent = mState.readings;
+
+  // Uptime
+  const sec = Math.floor((Date.now()-mState.startMs)/1000);
+  const mm = String(Math.floor(sec/60)).padStart(2,'0');
+  const ss = String(sec%60).padStart(2,'0');
+  document.getElementById('mUptime').textContent = mm+':'+ss;
+
+  // Badges
+  setBadge('mHrBadge',   mState.hr>120||mState.hr<50);
+  setBadge('mSpo2Badge', mState.spo2<92);
+  setBadge('mTempBadge', mState.temp>38);
+  setBadge('mFallBadge', false);
+
+  // ECG update
+  const ed = ecgChart.data.datasets[0].data;
+  ed.push(ecgVal); if(ed.length>100) ed.shift();
+  ecgChart.update('none');
+
+  // History buffers (every 5 ticks = 1 second)
+  if(tick % 5 === 0) {
+    const nowStr = new Date().toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    mHrH.push(Math.round(mState.hr));
+    mSpo2H.push(Math.round(mState.spo2));
+    mTempH.push(parseFloat(mState.temp.toFixed(1)));
+    mTimeH.push(nowStr);
+    if(mHrH.length>300) { mHrH.shift(); mSpo2H.shift(); mTempH.shift(); mTimeH.shift(); }
+    refreshHistoryCharts('24h');
+  }
+
+  // Alert
+  if(isAlert) {
+    const last = mAlerts[0];
+    if(!last || last.msg !== alertMsg || (Date.now()-last.rawTime)>5000) {
+      mState.alertCount++;
+      const entry = { msg:alertMsg, hr:Math.round(mState.hr), spo2:Math.round(mState.spo2),
+                      temp:mState.temp.toFixed(1), time:new Date().toLocaleTimeString(),
+                      rawTime:Date.now() };
+      mAlerts.unshift(entry);
+      document.getElementById('mEmgTitle').textContent = '🚨 '+alertMsg;
+      document.getElementById('mEmergencyBanner').classList.remove('hidden');
+      renderMAlerts();
+      document.getElementById('mAlertCount').textContent = mState.alertCount;
+      document.getElementById('mAlertBadge').textContent = mState.alertCount+' Alert'+(mState.alertCount!==1?'s':'');
+    }
+  } else {
+    document.getElementById('mEmergencyBanner').classList.add('hidden');
+  }
+}, 200);
+
+function setBadge(id, isAlert) {
+  const el = document.getElementById(id);
+  el.textContent = isAlert ? 'ALERT' : 'OK';
+  el.className   = 'm-card-badge ' + (isAlert ? 'badge-err' : 'badge-ok');
+}
+
+function renderMAlerts() {
+  const list = document.getElementById('mAlertList');
+  if(!mAlerts.length) return;
+  list.innerHTML = mAlerts.map((a,i) => `
+    <div class="m-alert-item">
+      <div class="m-alert-dot dot-${i===0?'red':'amber'}">${i===0?'🚨':'⚠️'}</div>
+      <div class="m-alert-body">
+        <div class="m-alert-type">${a.msg}</div>
+        <div class="m-alert-val">HR: ${a.hr} BPM · SpO₂: ${a.spo2}% · Temp: ${a.temp}°C</div>
+        <div class="m-alert-time">${a.time}</div>
+      </div>
+      <span class="m-alert-status ${i===0?'status-unresolved':'status-resolved'}">${i===0?'Active':'Cleared'}</span>
+    </div>
+  `).join('');
+}
+
+function acknowledgeAlert() {
+  document.getElementById('mEmergencyBanner').classList.add('hidden');
+}
+
+// ─── History Charts ───────────────────────────────────────
+function refreshHistoryCharts(range) {
+  const count = range==='1h' ? 60 : range==='6h' ? 360 : mHrH.length;
+  const sl = n => n.slice(-count);
+  [
+    [charts.hr,   mHrH],
+    [charts.spo2, mSpo2H],
+    [charts.temp, mTempH],
+  ].forEach(([c, d]) => {
+    c.data.labels           = sl(mTimeH);
+    c.data.datasets[0].data = sl(d);
+    c.update('none');
+  });
+}
+
+function mSetRange(r, btn) {
+  document.querySelectorAll('.h-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  refreshHistoryCharts(r);
+}
+
+// ─── SOS ─────────────────────────────────────────────────
+function triggerSOS() {
+  alert('🆘 SOS signal sent to emergency contacts!\n\nIn a production system, this would:\n• Call +91-9876543210\n• Send SMS to family\n• Alert hospital staff\n• Publish MQTT alert\n• Log to database');
+}
+</script>
+</body>
+</html>
